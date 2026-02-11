@@ -1,3 +1,10 @@
+## [1.0.1-develop.3](https://github.com/9IT-Full-Service/shared-workflows/compare/v1.0.1-develop.2...v1.0.1-develop.3) (2026-02-11)
+
+
+### Bug Fixes
+
+* trigger for time check ([ce2c77d](https://github.com/9IT-Full-Service/shared-workflows/commit/ce2c77d28383deabea7e36a41d4868e10e287370))
+
 ## [1.0.1-develop.2](https://github.com/9IT-Full-Service/shared-workflows/compare/v1.0.1-develop.1...v1.0.1-develop.2) (2026-02-11)
 
 
