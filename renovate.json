@@ -1,0 +1,24 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "config:recommended"
+  ],
+  "postUpdateOptions": ["gomodTidy", "gomodUpdateImportPaths"],
+  "automerge": true,
+  "automergeType": "pr",
+  "patch": {
+    "automerge": true
+  },
+  "prCreation": "not-pending",
+  "packageRules": [
+    {
+      "matchPackageNames": [
+        "ghcr.io/mogenius/mogenius-operator"
+      ],
+      "matchFileNames": [
+        "helm/**"
+      ],
+      "enabled": false
+    }
+  ]
+}
