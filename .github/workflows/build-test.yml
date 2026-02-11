@@ -17,7 +17,10 @@ on:
         default: 'dev'
         type: string
   push:
-    branches: [main]
+    branches:
+      - main
+      - develop
+      - 'release/*'
     paths:
       - 'operator/**'
       - 'src/**'
@@ -114,7 +117,7 @@ jobs:
       image_name: ghcr.io/9it-full-service/test-image
       version: ${{ needs.prepare.outputs.version }}
       architectures: '["amd64", "arm64", "armv7"]'
-      tag_latest: ${{ github.ref_name == 'main' }}
+      tag_latest: ${{ github.ref_name == 'main' && needs.prepare.outputs.is_release == 'true' }}
       tag_sha: true
       tag_branch: true
       runner: arc-runner-set
