@@ -1,3 +1,11 @@
+## [1.0.1](https://github.com/9IT-Full-Service/shared-workflows/compare/v1.0.0...v1.0.1) (2026-02-11)
+
+
+### Bug Fixes
+
+* build dev and rc images ([23f0ad0](https://github.com/9IT-Full-Service/shared-workflows/commit/23f0ad0a9671e183e52fc22beb6fd5b4759672cb))
+* trigger dev build ([a3b2ffb](https://github.com/9IT-Full-Service/shared-workflows/commit/a3b2ffbacf8c3587d54cce5010d14d2527df85e7))
+
 # 1.0.0 (2026-02-11)
 
 
