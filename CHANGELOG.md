@@ -1,3 +1,11 @@
+## [1.0.1-develop.2](https://github.com/9IT-Full-Service/shared-workflows/compare/v1.0.1-develop.1...v1.0.1-develop.2) (2026-02-11)
+
+
+### Bug Fixes
+
+* remove unused envs ([c9fb30c](https://github.com/9IT-Full-Service/shared-workflows/commit/c9fb30c3a038c1aa2c7439500781afa1eedf931b))
+* trigger dev build without envs ([5f0c202](https://github.com/9IT-Full-Service/shared-workflows/commit/5f0c202c34ceabafe1498d4acb0a63c807c10e06))
+
 ## [1.0.1-develop.1](https://github.com/9IT-Full-Service/shared-workflows/compare/v1.0.0...v1.0.1-develop.1) (2026-02-11)
 
 
