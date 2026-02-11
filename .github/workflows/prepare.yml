@@ -31,6 +31,12 @@ on:
       version:
         description: 'Resolved version string'
         value: ${{ jobs.prepare.outputs.version }}
+      is_release:
+        description: 'Whether this is a semver release (triggered by a vX.Y.Z tag)'
+        value: ${{ jobs.prepare.outputs.is_release }}
+      semver:
+        description: 'Semver version without v prefix (e.g. 1.0.0), empty if not a release'
+        value: ${{ jobs.prepare.outputs.semver }}
 
 jobs:
   prepare:
@@ -40,6 +46,8 @@ jobs:
       git_branch: ${{ steps.version.outputs.git_branch }}
       build_timestamp: ${{ steps.version.outputs.build_timestamp }}
       version: ${{ steps.version.outputs.version }}
+      is_release: ${{ steps.version.outputs.is_release }}
+      semver: ${{ steps.version.outputs.semver }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -53,10 +61,20 @@ jobs:
           COMMIT_HASH=$(git rev-parse --short HEAD)
           GIT_BRANCH=${GITHUB_REF_NAME}
           BUILD_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+          IS_RELEASE="false"
+          SEMVER=""
 
-          # Priority: version_override > default_version
+          # Check if the current ref is a semver tag (v1.2.3, v1.2.3-rc.1, etc.)
+          if [[ "${GITHUB_REF}" =~ ^refs/tags/v([0-9]+\.[0-9]+\.[0-9]+.*)$ ]]; then
+            SEMVER="${BASH_REMATCH[1]}"
+            IS_RELEASE="true"
+          fi
+
+          # Priority: version_override > semver tag > default_version
           if [ -n "${{ inputs.version_override }}" ]; then
             VERSION="${{ inputs.version_override }}"
+          elif [ -n "${SEMVER}" ]; then
+            VERSION="${SEMVER}"
           else
             VERSION="${{ inputs.default_version }}"
           fi
@@ -65,11 +83,15 @@ jobs:
           echo "git_branch=${GIT_BRANCH}" >> $GITHUB_OUTPUT
           echo "build_timestamp=${BUILD_TIMESTAMP}" >> $GITHUB_OUTPUT
           echo "version=${VERSION}" >> $GITHUB_OUTPUT
+          echo "is_release=${IS_RELEASE}" >> $GITHUB_OUTPUT
+          echo "semver=${SEMVER}" >> $GITHUB_OUTPUT
 
           echo "## Version Info" >> $GITHUB_STEP_SUMMARY
           echo "| Key | Value |" >> $GITHUB_STEP_SUMMARY
           echo "|-----|-------|" >> $GITHUB_STEP_SUMMARY
           echo "| Version | ${VERSION} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Semver | ${SEMVER:-n/a} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Release | ${IS_RELEASE} |" >> $GITHUB_STEP_SUMMARY
           echo "| Commit | ${COMMIT_HASH} |" >> $GITHUB_STEP_SUMMARY
           echo "| Branch | ${GIT_BRANCH} |" >> $GITHUB_STEP_SUMMARY
           echo "| Timestamp | ${BUILD_TIMESTAMP} |" >> $GITHUB_STEP_SUMMARY
