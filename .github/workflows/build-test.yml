@@ -28,11 +28,11 @@ on:
       - 'go.sum'
       - 'Dockerfile'
 
-env:
-  IMAGE_NAME: ghcr.io/9it-full-service/test-image
-  IMAGE_TAG: ghcr.io/9it-full-service/test-image
-  SHARED_WORKFLOWS_REF: main  # pin to tag for production, e.g. v1.0.0
-  DOCKERFILE_PATH: ./Dockerfile  # adjust if your Dockerfile is not in the repo root
+# env:
+#   IMAGE_NAME: ghcr.io/9it-full-service/test-image
+#   IMAGE_TAG: ghcr.io/9it-full-service/test-image
+#   SHARED_WORKFLOWS_REF: main  # pin to tag for production, e.g. v1.0.0
+#   DOCKERFILE_PATH: ./Dockerfile  # adjust if your Dockerfile is not in the repo root
 
 jobs:
   # ============================================================================
