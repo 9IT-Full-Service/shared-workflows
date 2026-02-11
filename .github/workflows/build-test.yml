@@ -59,39 +59,38 @@ jobs:
           - arch: amd64
             runner: arc-runner-set
             needs_qemu: false
-            # build_args: |
-            #   GO_BUILDER_IMAGE=ghcr.io/mogenius/go-builder:latest-amd64
-            #   RUST_BUILDER_IMAGE=ghcr.io/mogenius/rust-builder:latest-amd64
-            #   BPFTOOL_IMAGE=ghcr.io/mogenius/bpftool:latest-amd64
-            #   SNOOPY_IMAGE=ghcr.io/mogenius/snoopy:latest-amd64
-            #   RUNTIME_IMAGE=ghcr.io/mogenius/runtime:latest-amd64
+            build_args: |
+              #   GO_BUILDER_IMAGE=ghcr.io/mogenius/go-builder:latest-amd64
+              #   RUST_BUILDER_IMAGE=ghcr.io/mogenius/rust-builder:latest-amd64
+              #   BPFTOOL_IMAGE=ghcr.io/mogenius/bpftool:latest-amd64
+              #   SNOOPY_IMAGE=ghcr.io/mogenius/snoopy:latest-amd64
+              #   RUNTIME_IMAGE=ghcr.io/mogenius/runtime:latest-amd64
 
           # ── ARM64 (native) ──
           - arch: arm64
             runner: arc-runner-set
             needs_qemu: false
-            # build_args: |
-            #   GO_BUILDER_IMAGE=ghcr.io/mogenius/go-builder:latest-arm64
-            #   RUST_BUILDER_IMAGE=ghcr.io/mogenius/rust-builder:latest-arm64
-            #   BPFTOOL_IMAGE=ghcr.io/mogenius/bpftool:latest-arm64
-            #   SNOOPY_IMAGE=ghcr.io/mogenius/snoopy:latest-arm64
-            #   RUNTIME_IMAGE=ghcr.io/mogenius/runtime:latest-arm64
+            build_args: |
+              #   GO_BUILDER_IMAGE=ghcr.io/mogenius/go-builder:latest-arm64
+              #   RUST_BUILDER_IMAGE=ghcr.io/mogenius/rust-builder:latest-arm64
+              #   BPFTOOL_IMAGE=ghcr.io/mogenius/bpftool:latest-arm64
+              #   SNOOPY_IMAGE=ghcr.io/mogenius/snoopy:latest-arm64
+              #   RUNTIME_IMAGE=ghcr.io/mogenius/runtime:latest-arm64
 
           # ── ARMv7 (cross-compiled via QEMU on amd64) ──
           - arch: armv7
             runner: arc-runner-set
             needs_qemu: false
-            # build_args: |
-            #   GO_BUILDER_IMAGE=ghcr.io/mogenius/go-builder:latest-amd64
-            #   RUST_BUILDER_IMAGE=ghcr.io/mogenius/rust-builder:latest-amd64
-            #   BPFTOOL_IMAGE=ghcr.io/mogenius/bpftool:latest-armv7
-            #   SNOOPY_IMAGE=ghcr.io/mogenius/snoopy:latest-armv7
-            #   RUNTIME_IMAGE=ghcr.io/mogenius/runtime:latest-armv7
+            build_args: |
+              #   GO_BUILDER_IMAGE=ghcr.io/mogenius/go-builder:latest-amd64
+              #   RUST_BUILDER_IMAGE=ghcr.io/mogenius/rust-builder:latest-amd64
+              #   BPFTOOL_IMAGE=ghcr.io/mogenius/bpftool:latest-armv7
+              #   SNOOPY_IMAGE=ghcr.io/mogenius/snoopy:latest-armv7
+              #   RUNTIME_IMAGE=ghcr.io/mogenius/runtime:latest-armv7
 
     uses: 9it-full-service/shared-workflows/.github/workflows/build-image.yml@main
     with:
       image_name: ghcr.io/9it-full-service/test-image
-      # ghcr.io/mogenius/mogenius-operator-ng
       dockerfile: ./Dockerfile
       context: .
       arch: ${{ matrix.arch }}
@@ -113,10 +112,9 @@ jobs:
     uses: 9it-full-service/shared-workflows/.github/workflows/create-manifest.yml@main
     with:
       image_name: ghcr.io/9it-full-service/test-image
-      # ghcr.io/9it-full-service/image-name
       version: ${{ needs.prepare.outputs.version }}
       architectures: '["amd64", "arm64", "armv7"]'
       tag_latest: ${{ github.ref_name == 'main' }}
       tag_sha: true
       tag_branch: true
-      runner: arc-runner-set-amd64
+      runner: arc-runner-set
