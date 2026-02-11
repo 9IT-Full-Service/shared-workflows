@@ -34,7 +34,7 @@ on:
 
 jobs:
   prepare:
-    runs-on: ubuntu-latest
+    runs-on: arc-runner-set
     outputs:
       commit_hash: ${{ steps.version.outputs.commit_hash }}
       git_branch: ${{ steps.version.outputs.git_branch }}
