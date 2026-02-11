@@ -1,0 +1,130 @@
+name: Create Multi-Arch Manifest
+
+on:
+  workflow_call:
+    inputs:
+      image_name:
+        description: 'Full image name without tag (e.g. ghcr.io/mogenius/my-operator)'
+        required: true
+        type: string
+      version:
+        description: 'Version tag used during build'
+        required: true
+        type: string
+      architectures:
+        description: 'JSON array of architectures to include (e.g. ["amd64","arm64","armv7"])'
+        required: true
+        type: string
+      tag_latest:
+        description: 'Also tag as latest'
+        required: false
+        default: false
+        type: boolean
+      tag_sha:
+        description: 'Also tag with short commit SHA'
+        required: false
+        default: true
+        type: boolean
+      tag_branch:
+        description: 'Also tag with branch name'
+        required: false
+        default: true
+        type: boolean
+      additional_tags:
+        description: 'Additional tags as JSON array (e.g. ["stable","canary"])'
+        required: false
+        default: '[]'
+        type: string
+      registry:
+        description: 'Container registry'
+        required: false
+        default: 'ghcr.io'
+        type: string
+      runner:
+        description: 'Runner label'
+        required: false
+        default: 'ubuntu-latest'
+        type: string
+
+jobs:
+  manifest:
+    runs-on: ${{ inputs.runner }}
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build source image list
+        id: sources
+        run: |
+          # Parse architectures JSON array into space-separated image refs
+          SOURCES=""
+          for ARCH in $(echo '${{ inputs.architectures }}' | jq -r '.[]'); do
+            SOURCES="${SOURCES} ${{ inputs.image_name }}:${{ inputs.version }}-${ARCH}"
+          done
+          echo "images=${SOURCES}" >> $GITHUB_OUTPUT
+          echo "Source images: ${SOURCES}"
+
+      - name: Create and push manifests
+        env:
+          IMAGE: ${{ inputs.image_name }}
+          VERSION: ${{ inputs.version }}
+          SOURCES: ${{ steps.sources.outputs.images }}
+        run: |
+          set -euo pipefail
+
+          create_manifest() {
+            local TAG=$1
+            echo "📦 Creating manifest: ${IMAGE}:${TAG}"
+            docker buildx imagetools create -t "${IMAGE}:${TAG}" ${SOURCES}
+          }
+
+          # ── Primary version tag ──
+          create_manifest "${VERSION}"
+
+          # ── Latest tag ──
+          if [ "${{ inputs.tag_latest }}" == "true" ]; then
+            create_manifest "latest"
+          fi
+
+          # ── SHA tag ──
+          if [ "${{ inputs.tag_sha }}" == "true" ]; then
+            SHA_TAG=${GITHUB_SHA::7}
+            create_manifest "${SHA_TAG}"
+          fi
+
+          # ── Branch tag ──
+          if [ "${{ inputs.tag_branch }}" == "true" ]; then
+            BRANCH_TAG=$(echo "${GITHUB_REF_NAME}" | sed 's/[^a-zA-Z0-9]/-/g')
+            create_manifest "${BRANCH_TAG}"
+          fi
+
+          # ── Additional tags ──
+          for TAG in $(echo '${{ inputs.additional_tags }}' | jq -r '.[]'); do
+            create_manifest "${TAG}"
+          done
+
+          # ── Summary ──
+          echo "## Multi-Arch Manifest" >> $GITHUB_STEP_SUMMARY
+          echo "**Image:** \`${IMAGE}\`" >> $GITHUB_STEP_SUMMARY
+          echo "**Architectures:** ${{ inputs.architectures }}" >> $GITHUB_STEP_SUMMARY
+          echo "### Tags" >> $GITHUB_STEP_SUMMARY
+          echo "- \`${VERSION}\`" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ inputs.tag_latest }}" == "true" ]; then
+            echo "- \`latest\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ inputs.tag_sha }}" == "true" ]; then
+            echo "- \`${GITHUB_SHA::7}\`" >> $GITHUB_STEP_SUMMARY
+          fi
+          if [ "${{ inputs.tag_branch }}" == "true" ]; then
+            echo "- \`$(echo "${GITHUB_REF_NAME}" | sed 's/[^a-zA-Z0-9]/-/g')\`" >> $GITHUB_STEP_SUMMARY
+          fi

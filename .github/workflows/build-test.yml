@@ -1,0 +1,121 @@
+# ==============================================================================
+# Example: Caller workflow for test-image
+# Lives in: 9it-full-service/shared-workflows/.github/workflows/build.yml
+#
+# This shows how to use the shared workflows with a dynamic architecture matrix.
+# Adjust the matrix.include array to control which architectures are built.
+# ==============================================================================
+
+name: Build Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag for the image'
+        required: false
+        default: 'dev'
+        type: string
+  push:
+    branches: [main]
+    paths:
+      - 'operator/**'
+      - 'src/**'
+      - 'go.mod'
+      - 'go.sum'
+      - 'Dockerfile'
+
+env:
+  IMAGE_NAME: ghcr.io/9it-full-service/test-image
+  IMAGE_TAG: ghcr.io/9it-full-service/test-image
+  SHARED_WORKFLOWS_REF: main  # pin to tag for production, e.g. v1.0.0
+  DOCKERFILE_PATH: ./Dockerfile  # adjust if your Dockerfile is not in the repo root
+
+jobs:
+  # ============================================================================
+  # 1. Prepare - Get version info
+  # ============================================================================
+  prepare:
+    uses: 9it-full-service/shared-workflows/.github/workflows/prepare.yml@main
+    with:
+      version_override: ${{ github.event.inputs.version || '' }}
+      default_version: 'dev'
+
+  # ============================================================================
+  # 2. Build - Matrix over architectures
+  #
+  #    ⚡ This is where the magic happens:
+  #    - Add/remove entries from matrix.include to control which archs are built
+  #    - Each project defines its own runner labels and builder images
+  #    - needs_qemu: true triggers QEMU setup for cross-compilation
+  # ============================================================================
+  build:
+    needs: [prepare]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          # ── AMD64 (native) ──
+          - arch: amd64
+            runner: arc-runner-set
+            needs_qemu: false
+            # build_args: |
+            #   GO_BUILDER_IMAGE=ghcr.io/mogenius/go-builder:latest-amd64
+            #   RUST_BUILDER_IMAGE=ghcr.io/mogenius/rust-builder:latest-amd64
+            #   BPFTOOL_IMAGE=ghcr.io/mogenius/bpftool:latest-amd64
+            #   SNOOPY_IMAGE=ghcr.io/mogenius/snoopy:latest-amd64
+            #   RUNTIME_IMAGE=ghcr.io/mogenius/runtime:latest-amd64
+
+          # ── ARM64 (native) ──
+          - arch: arm64
+            runner: arc-runner-set
+            needs_qemu: false
+            # build_args: |
+            #   GO_BUILDER_IMAGE=ghcr.io/mogenius/go-builder:latest-arm64
+            #   RUST_BUILDER_IMAGE=ghcr.io/mogenius/rust-builder:latest-arm64
+            #   BPFTOOL_IMAGE=ghcr.io/mogenius/bpftool:latest-arm64
+            #   SNOOPY_IMAGE=ghcr.io/mogenius/snoopy:latest-arm64
+            #   RUNTIME_IMAGE=ghcr.io/mogenius/runtime:latest-arm64
+
+          # ── ARMv7 (cross-compiled via QEMU on amd64) ──
+          - arch: armv7
+            runner: arc-runner-set
+            needs_qemu: false
+            # build_args: |
+            #   GO_BUILDER_IMAGE=ghcr.io/mogenius/go-builder:latest-amd64
+            #   RUST_BUILDER_IMAGE=ghcr.io/mogenius/rust-builder:latest-amd64
+            #   BPFTOOL_IMAGE=ghcr.io/mogenius/bpftool:latest-armv7
+            #   SNOOPY_IMAGE=ghcr.io/mogenius/snoopy:latest-armv7
+            #   RUNTIME_IMAGE=ghcr.io/mogenius/runtime:latest-armv7
+
+    uses: 9it-full-service/shared-workflows/.github/workflows/build-image.yml@main
+    with:
+      image_name: {{ env.IMAGE_TAG }} 
+      # ghcr.io/mogenius/mogenius-operator-ng
+      dockerfile: {{ env.DOCKERFILE_PATH }}
+      arch: ${{ matrix.arch }}
+      runner: ${{ matrix.runner }}
+      needs_qemu: ${{ matrix.needs_qemu }}
+      version: ${{ needs.prepare.outputs.version }}
+      commit_hash: ${{ needs.prepare.outputs.commit_hash }}
+      git_branch: ${{ needs.prepare.outputs.git_branch }}
+      build_timestamp: ${{ needs.prepare.outputs.build_timestamp }}
+      build_args: ${{ matrix.build_args }}
+
+  # ============================================================================
+  # 3. Manifest - Combine all arch images into one multi-arch manifest
+  #
+  #    The architectures array MUST match the archs built above.
+  # ============================================================================
+  manifest:
+    needs: [prepare, build]
+    uses: 9it-full-service/shared-workflows/.github/workflows/create-manifest.yml@main
+    with:
+      image_name: {{ env.IMAGE_NAME }}
+      # ghcr.io/9it-full-service/image-name
+      version: ${{ needs.prepare.outputs.version }}
+      architectures: '["amd64", "arm64", "armv7"]'
+      tag_latest: ${{ github.ref_name == 'main' }}
+      tag_sha: true
+      tag_branch: true
+      runner: arc-runner-set-amd64

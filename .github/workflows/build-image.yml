@@ -1,0 +1,190 @@
+name: Build Docker Image
+
+on:
+  workflow_call:
+    inputs:
+      # ── Image Configuration ──
+      image_name:
+        description: 'Full image name without tag (e.g. ghcr.io/9it-full-service/my-image)'
+        required: true
+        type: string
+      dockerfile:
+        description: 'Path to Dockerfile'
+        required: false
+        default: './Dockerfile'
+        type: string
+      context:
+        description: 'Docker build context'
+        required: false
+        default: '.'
+        type: string
+      ref:
+        description: 'Git ref to checkout'
+        required: false
+        default: ''
+        type: string
+
+      # ── Architecture ──
+      arch:
+        description: 'Target architecture (amd64, arm64, armv7)'
+        required: true
+        type: string
+      runner:
+        description: 'GitHub Actions runner label for this build'
+        required: true
+        type: string
+      needs_qemu:
+        description: 'Whether this build needs QEMU (cross-compilation)'
+        required: false
+        default: false
+        type: boolean
+
+      # ── Version Info ──
+      version:
+        description: 'Version tag'
+        required: true
+        type: string
+      commit_hash:
+        description: 'Short commit hash'
+        required: false
+        default: ''
+        type: string
+      git_branch:
+        description: 'Git branch'
+        required: false
+        default: ''
+        type: string
+      build_timestamp:
+        description: 'Build timestamp'
+        required: false
+        default: ''
+        type: string
+
+      # ── Build Args ──
+      build_args:
+        description: 'Additional Docker build-args as multiline string'
+        required: false
+        default: ''
+        type: string
+
+      # ── Registry ──
+      registry:
+        description: 'Container registry'
+        required: false
+        default: 'ghcr.io'
+        type: string
+
+      # ── Cache ──
+      cache_scope:
+        description: 'GHA cache scope (defaults to image_name-arch)'
+        required: false
+        default: ''
+        type: string
+
+    outputs:
+      digest:
+        description: 'Image digest'
+        value: ${{ jobs.build.outputs.digest }}
+      image_ref:
+        description: 'Full image reference (name:tag)'
+        value: ${{ jobs.build.outputs.image_ref }}
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner }}
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      digest: ${{ steps.build.outputs.digest }}
+      image_ref: ${{ steps.meta.outputs.image_ref }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+
+      - name: Set up QEMU
+        if: inputs.needs_qemu
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ inputs.registry }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Resolve metadata
+        id: meta
+        run: |
+          # Map arch to Docker platform
+          case "${{ inputs.arch }}" in
+            amd64)  PLATFORM="linux/amd64" ;;
+            arm64)  PLATFORM="linux/arm64" ;;
+            armv7)  PLATFORM="linux/arm/v7" ;;
+            *)      PLATFORM="linux/${{ inputs.arch }}" ;;
+          esac
+          echo "platform=${PLATFORM}" >> $GITHUB_OUTPUT
+
+          # Image tag
+          IMAGE_REF="${{ inputs.image_name }}:${{ inputs.version }}-${{ inputs.arch }}"
+          echo "image_ref=${IMAGE_REF}" >> $GITHUB_OUTPUT
+
+          # Cache scope
+          if [ -n "${{ inputs.cache_scope }}" ]; then
+            echo "cache_scope=${{ inputs.cache_scope }}" >> $GITHUB_OUTPUT
+          else
+            # Derive from image name + arch
+            SCOPE=$(echo "${{ inputs.image_name }}-${{ inputs.arch }}" | sed 's|[/:]|-|g')
+            echo "cache_scope=${SCOPE}" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Assemble build-args
+        id: args
+        run: |
+          # Start with user-provided build args
+          ARGS="${{ inputs.build_args }}"
+
+          # Append version info if provided
+          if [ -n "${{ inputs.commit_hash }}" ]; then
+            ARGS="${ARGS}
+          COMMIT_HASH=${{ inputs.commit_hash }}"
+          fi
+          if [ -n "${{ inputs.git_branch }}" ]; then
+            ARGS="${ARGS}
+          GIT_BRANCH=${{ inputs.git_branch }}"
+          fi
+          if [ -n "${{ inputs.build_timestamp }}" ]; then
+            ARGS="${ARGS}
+          BUILD_TIMESTAMP=${{ inputs.build_timestamp }}"
+          fi
+          if [ -n "${{ inputs.version }}" ]; then
+            ARGS="${ARGS}
+          VERSION=${{ inputs.version }}"
+          fi
+
+          # Write to file to preserve multiline
+          echo "${ARGS}" > /tmp/build-args.txt
+          echo "file=/tmp/build-args.txt" >> $GITHUB_OUTPUT
+
+      - name: Build and push
+        id: build
+        uses: docker/build-push-action@v5
+        with:
+          context: ${{ inputs.context }}
+          file: ${{ inputs.dockerfile }}
+          platforms: ${{ steps.meta.outputs.platform }}
+          push: true
+          tags: ${{ steps.meta.outputs.image_ref }}
+          build-args: |
+            ${{ inputs.build_args }}
+            COMMIT_HASH=${{ inputs.commit_hash }}
+            GIT_BRANCH=${{ inputs.git_branch }}
+            BUILD_TIMESTAMP=${{ inputs.build_timestamp }}
+            VERSION=${{ inputs.version }}
+          cache-from: type=gha,scope=${{ steps.meta.outputs.cache_scope }}
+          cache-to: type=gha,mode=max,scope=${{ steps.meta.outputs.cache_scope }}

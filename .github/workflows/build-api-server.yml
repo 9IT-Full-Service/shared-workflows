@@ -1,0 +1,48 @@
+# ==============================================================================
+# Example: Simpler project - only amd64 + arm64, no armv7
+# Shows how easy it is to customize per project
+# ==============================================================================
+
+name: Build API Server
+
+on:
+  push:
+    branches: [Xmain]
+    paths: ['cmd/**', 'pkg/**', 'go.mod', 'Dockerfile']
+
+jobs:
+  prepare:
+    uses: mogenius/shared-workflows/.github/workflows/prepare.yml@main
+
+  build:
+    needs: [prepare]
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: amd64
+            runner: ubuntu-latest
+            needs_qemu: false
+            build_args: ""
+          - arch: arm64
+            runner: ubuntu-latest
+            needs_qemu: true  # cross-compile on GitHub-hosted runner
+            build_args: ""
+    uses: mogenius/shared-workflows/.github/workflows/build-image.yml@main
+    with:
+      image_name: ghcr.io/mogenius/api-server
+      arch: ${{ matrix.arch }}
+      runner: ${{ matrix.runner }}
+      needs_qemu: ${{ matrix.needs_qemu }}
+      version: ${{ needs.prepare.outputs.version }}
+      commit_hash: ${{ needs.prepare.outputs.commit_hash }}
+      build_args: ${{ matrix.build_args }}
+
+  manifest:
+    needs: [prepare, build]
+    uses: mogenius/shared-workflows/.github/workflows/create-manifest.yml@main
+    with:
+      image_name: ghcr.io/mogenius/api-server
+      version: ${{ needs.prepare.outputs.version }}
+      architectures: '["amd64", "arm64"]'    # <-- Nur 2 Archs, kein armv7!
+      tag_latest: ${{ github.ref_name == 'main' }}

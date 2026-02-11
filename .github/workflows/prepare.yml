@@ -1,0 +1,75 @@
+name: Prepare Version
+
+on:
+  workflow_call:
+    inputs:
+      default_version:
+        description: 'Default version if no input is provided'
+        required: false
+        default: 'dev'
+        type: string
+      version_override:
+        description: 'Explicit version override (e.g. from workflow_dispatch)'
+        required: false
+        default: ''
+        type: string
+      ref:
+        description: 'Git ref to checkout'
+        required: false
+        default: ''
+        type: string
+    outputs:
+      commit_hash:
+        description: 'Short commit hash'
+        value: ${{ jobs.prepare.outputs.commit_hash }}
+      git_branch:
+        description: 'Git branch name'
+        value: ${{ jobs.prepare.outputs.git_branch }}
+      build_timestamp:
+        description: 'Build timestamp in ISO 8601'
+        value: ${{ jobs.prepare.outputs.build_timestamp }}
+      version:
+        description: 'Resolved version string'
+        value: ${{ jobs.prepare.outputs.version }}
+
+jobs:
+  prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      commit_hash: ${{ steps.version.outputs.commit_hash }}
+      git_branch: ${{ steps.version.outputs.git_branch }}
+      build_timestamp: ${{ steps.version.outputs.build_timestamp }}
+      version: ${{ steps.version.outputs.version }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.ref || github.ref }}
+          fetch-depth: 0
+
+      - name: Get version info
+        id: version
+        run: |
+          COMMIT_HASH=$(git rev-parse --short HEAD)
+          GIT_BRANCH=${GITHUB_REF_NAME}
+          BUILD_TIMESTAMP=$(date -u +"%Y-%m-%dT%H:%M:%SZ")
+
+          # Priority: version_override > default_version
+          if [ -n "${{ inputs.version_override }}" ]; then
+            VERSION="${{ inputs.version_override }}"
+          else
+            VERSION="${{ inputs.default_version }}"
+          fi
+
+          echo "commit_hash=${COMMIT_HASH}" >> $GITHUB_OUTPUT
+          echo "git_branch=${GIT_BRANCH}" >> $GITHUB_OUTPUT
+          echo "build_timestamp=${BUILD_TIMESTAMP}" >> $GITHUB_OUTPUT
+          echo "version=${VERSION}" >> $GITHUB_OUTPUT
+
+          echo "## Version Info" >> $GITHUB_STEP_SUMMARY
+          echo "| Key | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|-----|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Version | ${VERSION} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Commit | ${COMMIT_HASH} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Branch | ${GIT_BRANCH} |" >> $GITHUB_STEP_SUMMARY
+          echo "| Timestamp | ${BUILD_TIMESTAMP} |" >> $GITHUB_STEP_SUMMARY
