@@ -90,9 +90,10 @@ jobs:
 
     uses: 9it-full-service/shared-workflows/.github/workflows/build-image.yml@main
     with:
-      image_name: ${{ env.IMAGE_TAG }} 
+      image_name: ghcr.io/9it-full-service/test-image
       # ghcr.io/mogenius/mogenius-operator-ng
-      dockerfile: ${{ env.DOCKERFILE_PATH }}
+      dockerfile: ./Dockerfile
+      context: .
       arch: ${{ matrix.arch }}
       runner: ${{ matrix.runner }}
       needs_qemu: ${{ matrix.needs_qemu }}
@@ -111,7 +112,7 @@ jobs:
     needs: [prepare, build]
     uses: 9it-full-service/shared-workflows/.github/workflows/create-manifest.yml@main
     with:
-      image_name: ${{ env.IMAGE_NAME }}
+      image_name: ghcr.io/9it-full-service/test-image
       # ghcr.io/9it-full-service/image-name
       version: ${{ needs.prepare.outputs.version }}
       architectures: '["amd64", "arm64", "armv7"]'
