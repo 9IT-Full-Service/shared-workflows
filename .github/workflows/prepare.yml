@@ -92,7 +92,7 @@ jobs:
 
           # Check if semantic-release published a new version
           NEW_RELEASE="${{ steps.semantic.outputs.new_release_published }}"
-          SEMVER="${{ steps.semantic.outputs.new_release_version }}"
+          SEMVER="v${{ steps.semantic.outputs.new_release_version }}"
 
           if [ "${NEW_RELEASE}" == "true" ]; then
             IS_RELEASE="true"
