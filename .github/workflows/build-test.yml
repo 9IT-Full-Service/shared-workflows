@@ -18,8 +18,8 @@ on:
         type: string
   push:
     branches:
-      - main
-      - develop
+      - Xmain
+      - Xdevelop
       - 'release/*'
     paths:
       - 'operator/**'
